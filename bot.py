@@ -1,50 +1,49 @@
 import requests
-import json
+import sys
 
-# ==========================================
-# 👇 CÓDIGO ESPIÃO 👇
-# ==========================================
+# O TEU TOKEN
 TOKEN = "8420090733:AAEqYwQrzuNxT6YYwK9XRHB1SKzGjRn-kBE"
 
-print("--- 📡 A PROCURAR O ID DO GRUPO ---")
+print("--------------------------------------------------")
+print("👀 OLÁ! EU SOU O CÓDIGO NOVO (ESPIÃO) 👀")
+print("Se estás a ler isto, o código antigo JÁ ERA!")
+print("--------------------------------------------------")
 
 url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
 
 try:
-    # Vai à internet buscar as mensagens recentes
+    print("A perguntar ao Telegram por mensagens recentes...")
     response = requests.get(url)
     dados = response.json()
     
     if "result" in dados:
         lista = dados["result"]
-        print(f"Encontrei {len(lista)} atividades recentes.")
+        print(f"Encontrei {len(lista)} atividades.")
         
-        if len(lista) == 0:
-            print("⚠️ O Bot não vê mensagens. Tenta remover o bot do grupo e adicionar de novo!")
-        
-        # Mostra as últimas mensagens
         for item in reversed(lista):
+            # Procura mensagens de grupo
             if "message" in item:
                 chat = item["message"]["chat"]
-                texto = item["message"].get("text", "(Sem texto)")
-                tipo = chat["type"]
+                nome = chat.get("title", "Privado")
                 id_real = chat["id"]
-                titulo = chat.get("title", "Privado")
+                texto = item["message"].get("text", "Sem texto")
                 
-                print(f"\n📩 Mensagem: '{texto}'")
-                print(f"🏠 Grupo: '{titulo}'")
-                print(f"🆔 ID PARA COPIAR: {id_real}")
-                print("-" * 30)
-            
+                print(f"\n📢 Mensagem: {texto}")
+                print(f"🏠 Grupo: {nome}")
+                print(f"🆔 ID OBRIGATÓRIO: {id_real}")
+                print("-----------------------------------")
+                
+            # Procura convites para grupo
             if "my_chat_member" in item:
                 chat = item["my_chat_member"]["chat"]
                 nome = chat.get("title", "Grupo")
                 id_real = chat["id"]
-                print(f"\n👋 O Bot foi adicionado ao grupo: '{nome}'")
-                print(f"🆔 ID PARA COPIAR: {id_real}")
-                print("-" * 30)
+                print(f"\n👋 FUI ADICIONADO A: {nome}")
+                print(f"🆔 ID OBRIGATÓRIO: {id_real}")
+                print("-----------------------------------")
+
     else:
-        print("Erro ao ligar ao Telegram.")
+        print("Erro: O Token pode estar errado.")
 
 except Exception as e:
-    print(f"Erro: {e}")
+    print(f"Erro Fatal: {e}")
