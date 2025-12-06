@@ -1,43 +1,136 @@
+import telebot
 import requests
-import sys
+import time
+from datetime import datetime
 
-# ==========================================
-# 👇 PREENCHE AQUI 👇
-# ==========================================
+# ==============================================================================
+# 👇👇👇 CONFIGURAÇÕES - PREENCHE AQUI 👇👇👇
+# ==============================================================================
 
-TELEGRAM_TOKEN = "8420090733:AAEqYWQrzuNxT6YYwK9XRHB1SKzGjRn-kBE"
-GRUPO_ID = "-1003385933313" 
+# ⚠️ NÃO TE ESQUEÇAS DE COLOCAR O TEU TOKEN E ID AQUI!
+TELEGRAM_TOKEN = "COLOCA_O_TEU_TOKEN_AQUI"
+GRUPO_ID = "COLOCA_O_ID_AQUI"
 
-# ==========================================
+# ==============================================================================
 
-print("--- INICIANDO DIAGNÓSTICO ---")
-print(f"1. A usar o Token: {TELEGRAM_TOKEN[:10]}... (oculto)")
-print(f"2. A tentar enviar para o Grupo ID: {GRUPO_ID}")
+RAPIDAPI_KEY = '544d4e147f6767e1a4d8d1b3244347ca'
+SEASON = "2025"
+# Ligas: Premier, La Liga, PT, Serie A, Bundes, Ligue 1, Eredivisie
+LEAGUES = [39, 140, 94, 135, 78, 61, 88]
 
-# Montar o pedido direto à API
-url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-payload = {
-    "chat_id": GRUPO_ID,
-    "text": "🚨 TESTE DE DIAGNÓSTICO GITHUB 🚨\nSe leres isto, funcionou.",
-    "parse_mode": "Markdown"
+bot = telebot.TeleBot(TELEGRAM_TOKEN)
+headers = {
+    "X-RapidAPI-Key": RAPIDAPI_KEY,
+    "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
 }
 
-try:
-    print("3. Enviando pedido ao Telegram...")
-    response = requests.post(url, json=payload)
+def analisar_forma_inteligente(team_id):
+    # Lógica de Pontos: Vit=3, Emp=1. Precisa de 10pts em 15 possíveis.
+    url = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+    try:
+        data = requests.get(url, headers=headers, params={"team": team_id, "last": "5", "status": "FT"}).json()
+        jogos = data.get('response', [])
+        if not jogos: return False, 0
+        pontos = 0
+        derrotas = 0
+        for j in jogos:
+            home = j['teams']['home']['id'] == team_id
+            g_home = j['goals']['home']
+            g_away = j['goals']['away']
+            if home:
+                if g_home > g_away: pontos += 3
+                elif g_home == g_away: pontos += 1
+                else: derrotas += 1
+            else:
+                if g_away > g_home: pontos += 3
+                elif g_away == g_home: pontos += 1
+                else: derrotas += 1
+        return (pontos >= 10 and derrotas <= 1), pontos
+    except:
+        return False, 0
+
+def run():
+    print(f"🕵️‍♂️ A analisar o mercado...")
+    tips = []
+    hoje = datetime.now().strftime("%Y-%m-%d")
     
-    # IMPRIMIR A RESPOSTA EXATA DO TELEGRAM
-    print(f"--- RESPOSTA DO SERVIDOR ---")
-    print(f"Código HTTP: {response.status_code}")
-    print(f"Mensagem: {response.text}")
-    print(f"------------------------------")
+    for league in LEAGUES:
+        if len(tips) >= 3: break
+        url_fix = "https://api-football-v1.p.rapidapi.com/v3/fixtures"
+        try:
+            resp = requests.get(url_fix, headers=headers, params={"date": hoje, "league": league, "season": SEASON}).json()
+            matches = resp.get('response', [])
+            if not matches: continue
+            
+            for match in matches:
+                if len(tips) >= 3: break
+                fid = match['fixture']['id']
+                home = match['teams']['home']['name']
+                hid = match['teams']['home']['id']
+                away = match['teams']['away']['name']
+                
+                url_odds = "https://api-football-v1.p.rapidapi.com/v3/odds"
+                ro = requests.get(url_odds, headers=headers, params={"fixture": fid, "bookmaker": "6"}).json()
+                
+                if ro['response']:
+                    bets = ro['response'][0]['bookmakers'][0]['bets']
+                    melhor_opcao = None
+                    odd_sel = 0
+                    
+                    # 1. Vencedor
+                    m_1x2 = next((b for b in bets if b['id'] == 1), None)
+                    if m_1x2:
+                        val = next((v for v in m_1x2['values'] if v['value'] == 'Home'), None)
+                        if val and 1.20 <= float(val['odd']) <= 1.35:
+                            melhor_opcao = "Vencedor (Casa)"
+                            odd_sel = float(val['odd'])
+                    # 2. Dupla Chance
+                    if not melhor_opcao:
+                        m_dc = next((b for b in bets if b['id'] == 12), None)
+                        if m_dc:
+                            val = next((v for v in m_dc['values'] if 'Home' in v['value'] and 'Draw' in v['value']), None)
+                            if val and 1.20 <= float(val['odd']) <= 1.35:
+                                melhor_opcao = "Casa ou Empate (1X)"
+                                odd_sel = float(val['odd'])
+                    # 3. Golos
+                    if not melhor_opcao:
+                        m_gl = next((b for b in bets if b['id'] == 5), None)
+                        if m_gl:
+                            val = next((v for v in m_gl['values'] if v['value'] == 'Over 1.5'), None)
+                            if val and 1.20 <= float(val['odd']) <= 1.35:
+                                melhor_opcao = "Over 1.5 Golos"
+                                odd_sel = float(val['odd'])
+                                
+                    if melhor_opcao:
+                        ok, pts = analisar_forma_inteligente(hid)
+                        if ok:
+                            tips.append({'jogo': f"{home} vs {away}", 'mercado': melhor_opcao, 'odd': odd_sel, 'pts': pts})
+                time.sleep(0.5)
+        except: continue
 
-    if response.status_code == 200:
-        print("✅ SUCESSO! A mensagem foi entregue.")
+    # ==========================================================
+    # 👇 AQUI ESTÁ A PARTE QUE MUDA (ENVIA SEMPRE MENSAGEM) 👇
+    # ==========================================================
+
+    if len(tips) >= 3:
+        odd_total = 1.0
+        msg = "☁️ **MÚLTIPLA AUTOMÁTICA GITHUB** ☁️\n\n"
+        for t in tips:
+            odd_total *= t['odd']
+            msg += f"⚽ **{t['jogo']}**\n🎯 {t['mercado']}\n📊 Forma: {t['pts']}/15 pts\n💰 Odd: {t['odd']}\n\n"
+        msg += f"🚀 **ODD TOTAL: {odd_total:.2f}**"
+        try:
+            bot.send_message(GRUPO_ID, msg, parse_mode='Markdown')
+            print("✅ Múltipla enviada!")
+        except Exception as e: print(e)
     else:
-        print("❌ FALHA! O Telegram rejeitou o pedido.")
-        sys.exit(1) # Isto força o GitHub a ficar VERMELHO
+        # ESTA É A MENSAGEM DE AVISO
+        print("Sem tripla perfeita hoje.")
+        msg_vazia = "⚠️ **Relatório Diário:**\n\nO Bot analisou o mercado, mas não encontrou 3 jogos com segurança máxima (Odd 1.20-1.35 + Forma Boa).\n\n🛡️ **Hoje protegemos a banca.**"
+        try:
+            bot.send_message(GRUPO_ID, msg_vazia, parse_mode='Markdown')
+            print("✅ Aviso de 'Sem Jogos' enviado!")
+        except Exception as e: print(e)
 
-except Exception as e:
-    print(f"❌ ERRO CRÍTICO NO PYTHON: {e}")
-    sys.exit(1)
+if __name__ == "__main__":
+    run()
