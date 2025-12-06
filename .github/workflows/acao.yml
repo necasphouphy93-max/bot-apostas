@@ -1,0 +1,28 @@
+name: Bot Apostas Diario
+
+on:
+  schedule:
+    # Roda todos os dias às 8:00 UTC (Ajusta se quiseres)
+    - cron: '0 8 * * *'
+  # Permite rodar manualmente clicando num botão (para testares)
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v3
+
+      - name: Instalar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar bibliotecas
+        run: |
+          pip install pyTelegramBotAPI requests
+
+      - name: Executar o Bot
+        run: python bot.py
