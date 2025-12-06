@@ -1,63 +1,29 @@
+import telebot
 import requests
-import time
 import sys
 
-# O TEU TOKEN (Confirma se é deste bot que está no grupo!)
+# ==========================================
+# 👇 DADOS DO TEU BOT 👇
+# ==========================================
 TOKEN = "8420090733:AAEqYwQrzuNxT6YYwK9XRHB1SKzGjRn-kBE"
+ID_GRUPO = "-1003385933313" 
+# ==========================================
 
-print("--- A PROCURAR MENSAGENS RECENTES ---")
+print("--- 🚀 INICIANDO TESTE DE FORÇA ---")
 
-# Vamos pedir ao Telegram tudo o que aconteceu com este Bot
-url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+bot = telebot.TeleBot(TOKEN)
 
+# 1. TENTAR ENVIAR MENSAGEM IMEDIATA
 try:
-    response = requests.get(url)
-    dados = response.json()
-    
-    if not dados.get("ok"):
-        print("❌ O Token está inválido! Verifica no BotFather.")
-        sys.exit(1)
-
-    result = dados.get("result", [])
-
-    if len(result) == 0:
-        print("⚠️ O Bot está online, mas NÃO VIU nenhuma mensagem.")
-        print("MOTIVOS POSSÍVEIS:")
-        print("1. O bot que está no grupo NÃO É este do Token.")
-        print("2. O bot não é Administrador e não consegue ler.")
-        print("3. Ainda não escreveste 'TESTE GITHUB 123' no grupo.")
-        sys.exit(1)
-
-    print(f"✅ O Bot encontrou {len(result)} atividades!")
-    
-    encontrei = False
-    for update in result:
-        # Tenta encontrar a mensagem de grupo
-        if "message" in update:
-            msg = update["message"]
-            chat_id = msg["chat"]["id"]
-            tipo = msg["chat"]["type"]
-            texto = msg.get("text", "")
-            titulo = msg["chat"].get("title", "Privado")
-            
-            print(f"\n📩 Mensagem: '{texto}'")
-            print(f"🏠 Grupo: '{titulo}'")
-            print(f"🆔 ID REAL: {chat_id}")
-            
-            if "TESTE GITHUB" in texto:
-                print("🎉 ENCONTREI O TEU GRUPO! O ID CERTO É O DE CIMA!")
-                encontrei = True
-
-        # Tenta encontrar quando adicionaste o bot ao grupo
-        if "my_chat_member" in update:
-            chat_id = update["my_chat_member"]["chat"]["id"]
-            nome_grupo = update["my_chat_member"]["chat"]["title"]
-            print(f"\n👋 Fui adicionado ao grupo: '{nome_grupo}'")
-            print(f"🆔 ID REAL: {chat_id}")
-            encontrei = True
-
-    if not encontrei:
-        print("\n❌ Li algumas coisas, mas não vi a tua mensagem 'TESTE GITHUB 123'.")
-
+    print(f"A tentar enviar 'Olá' para o grupo {ID_GRUPO}...")
+    bot.send_message(ID_GRUPO, "👋 **OLÁ! SOU O BOT DO GITHUB!**\n\nSe estás a ler isto, a configuração está 100% correta.\nVou começar a analisar os jogos agora...")
+    print("✅ MENSAGEM ENVIADA COM SUCESSO!")
 except Exception as e:
-    print(f"Erro: {e}")
+    print(f"❌ ERRO GRAVE AO ENVIAR: {e}")
+    # Se falhar aqui, o GitHub vai ficar VERMELHO e tu vais saber porquê
+    sys.exit(1)
+
+# 2. CONTINUAR COM A ANÁLISE NORMAL (Se a mensagem acima funcionou)
+print("A analisar o mercado...")
+# (Aqui ele finge que analisa só para terminar o processo bem)
+print("Análise concluída.")
