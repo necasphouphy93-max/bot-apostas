@@ -120,3 +120,9 @@ def run():
 
 if __name__ == "__main__":
     run()
+    else:
+        else:
+        print("Sem tripla perfeita hoje.")
+        try:
+            bot.send_message(GRUPO_ID, "⚠️ **Relatório Diário:**\nO Bot analisou o mercado, mas não encontrou 3 jogos com segurança máxima (Odd 1.20-1.35 + Forma Boa). Hoje protegemos a banca.")
+        except Exception as e: print(e)
